@@ -42,7 +42,7 @@ export default function CreateLaporanPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [form, setForm] = useState({
     title: "",
     category: "",
@@ -59,15 +59,17 @@ export default function CreateLaporanPage() {
   useEffect(() => {
     apiFetch("/api/laporin/categories").then(({ ok, data }) => {
       if (ok) {
-        const cats = Array.isArray(data) ? data : data.data ?? [];
-        setCategories(cats.map((c: { name: string }) => c.name));
+        const cats = Array.isArray(data) ? data : (data.data ?? []);
+        setCategories(cats);
       }
     });
     setTimeout(() => setVisible(true), 50);
   }, []);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
   ) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -93,16 +95,24 @@ export default function CreateLaporanPage() {
     setError("");
     if (!form.title.trim()) return setError("Report title is required.");
     if (!form.category) return setError("Please select a category.");
-    if (!form.description.trim()) return setError("Detailed description is required.");
+    if (!form.description.trim())
+      return setError("Detailed description is required.");
     if (!form.location.trim()) return setError("Location is required.");
 
     setSubmitting(true);
 
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
     const formData = new FormData();
     formData.append("title", form.title);
     formData.append("category_name", form.category);
+    // also send possible alternative fields to satisfy backend expectations
+    formData.append("category", form.category);
+    const selectedCat = categories.find((c: any) => c.name === form.category);
+    if (selectedCat && (selectedCat.id || selectedCat._id)) {
+      formData.append("category_id", String(selectedCat.id ?? selectedCat._id));
+    }
     formData.append("description", form.description);
     formData.append("location", form.location);
     formData.append("priority", form.priority);
@@ -137,7 +147,9 @@ export default function CreateLaporanPage() {
       {/* header */}
       <div>
         <h1 className="text-xl font-bold text-gray-900">Create Report</h1>
-        <p className="text-xs text-gray-400 mt-0.5">Submit a new public complaint</p>
+        <p className="text-xs text-gray-400 mt-0.5">
+          Submit a new public complaint
+        </p>
       </div>
 
       {/* error */}
@@ -152,134 +164,189 @@ export default function CreateLaporanPage() {
         {/* LEFT — main form (2/3) */}
         <div className="col-span-2 space-y-4">
           {/* Report Details */}
-          <div style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(12px)", transition: "opacity 0.4s ease 100ms, transform 0.4s ease 100ms" }}>
-          <Section icon={<FileText size={15} className="text-blue-500" />} title="Report Details">
-            <Field label="Report Title" required>
-              <Input
-                name="title"
-                value={form.title}
-                onChange={handleChange}
-                placeholder="Brief description of the issue..."
-                className="h-9 text-sm border-gray-200 focus:border-blue-400 transition-colors"
-              />
-            </Field>
-
-            <Field label="Category" required>
-              <select
-                name="category"
-                value={form.category}
-                onChange={handleChange}
-                className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:border-blue-400 transition-colors"
-              >
-                <option value="">Select a category</option>
-                {categories.map((cat: string) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Detailed Description" required>
-              <div className="relative">
-                <textarea
-                  name="description"
-                  value={form.description}
+          <div
+            style={{
+              opacity: visible ? 1 : 0,
+              transform: visible ? "translateY(0)" : "translateY(12px)",
+              transition: "opacity 0.4s ease 100ms, transform 0.4s ease 100ms",
+            }}
+          >
+            <Section
+              icon={<FileText size={15} className="text-blue-500" />}
+              title="Report Details"
+            >
+              <Field label="Report Title" required>
+                <Input
+                  name="title"
+                  value={form.title}
                   onChange={handleChange}
-                  rows={7}
-                  placeholder="Please provide a detailed description of the issue. Include when it started, how it affects you, and any other relevant information..."
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:border-blue-400 transition-colors resize-none"
+                  placeholder="Brief description of the issue..."
+                  className="h-9 text-sm border-gray-200 focus:border-blue-400 transition-colors"
                 />
-                <span className="absolute bottom-2 right-3 text-xs text-gray-400">
-                  {form.description.length} characters
-                </span>
-              </div>
-            </Field>
-          </Section>
+              </Field>
+
+              <Field label="Category" required>
+                <select
+                  name="category"
+                  value={form.category}
+                  onChange={handleChange}
+                  className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:border-blue-400 transition-colors"
+                >
+                  <option value="">Select a category</option>
+                  {categories.map((cat: any) => (
+                    <option key={cat.id ?? cat.name} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Detailed Description" required>
+                <div className="relative">
+                  <textarea
+                    name="description"
+                    value={form.description}
+                    onChange={handleChange}
+                    rows={7}
+                    placeholder="Please provide a detailed description of the issue. Include when it started, how it affects you, and any other relevant information..."
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:border-blue-400 transition-colors resize-none"
+                  />
+                  <span className="absolute bottom-2 right-3 text-xs text-gray-400">
+                    {form.description.length} characters
+                  </span>
+                </div>
+              </Field>
+            </Section>
           </div>
 
           {/* Location */}
-          <div style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(12px)", transition: "opacity 0.4s ease 200ms, transform 0.4s ease 200ms" }}>
-          <Section icon={<MapPin size={15} className="text-blue-500" />} title="Location">
-            <Field label="Location / Address" required>
-              <Input
-                name="location"
-                value={form.location}
-                onChange={handleChange}
-                placeholder="e.g. Jl. Sudirman No. 45, Jakarta Pusat, near the intersection..."
-                className="h-9 text-sm border-gray-200 focus:border-blue-400 transition-colors"
-              />
-            </Field>
-          </Section>
+          <div
+            style={{
+              opacity: visible ? 1 : 0,
+              transform: visible ? "translateY(0)" : "translateY(12px)",
+              transition: "opacity 0.4s ease 200ms, transform 0.4s ease 200ms",
+            }}
+          >
+            <Section
+              icon={<MapPin size={15} className="text-blue-500" />}
+              title="Location"
+            >
+              <Field label="Location / Address" required>
+                <Input
+                  name="location"
+                  value={form.location}
+                  onChange={handleChange}
+                  placeholder="e.g. Jl. Sudirman No. 45, Jakarta Pusat, near the intersection..."
+                  className="h-9 text-sm border-gray-200 focus:border-blue-400 transition-colors"
+                />
+              </Field>
+            </Section>
           </div>
         </div>
 
         {/* RIGHT — priority + photos (1/3) */}
         <div className="col-span-1 space-y-4">
           {/* Priority */}
-          <div style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(12px)", transition: "opacity 0.4s ease 150ms, transform 0.4s ease 150ms" }}>
-          <Section icon={<AlertTriangle size={15} className="text-blue-500" />} title="Priority Level">
-            <div className="space-y-2">
-              {PRIORITIES.map((p) => {
-                const isActive = form.priority === p.key;
-                return (
-                  <button
-                    key={p.key}
-                    type="button"
-                    onClick={() => setForm((prev) => ({ ...prev, priority: p.key }))}
-                    className={`w-full border-2 rounded-xl p-3 text-left transition-all duration-200 hover:scale-[1.01] ${
-                      isActive ? p.activeColor : `${p.color} hover:border-gray-300`
-                    }`}
-                  >
-                    <p className={`text-sm font-semibold ${isActive ? "" : "text-gray-700"}`}>
-                      {p.label}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${isActive ? "opacity-80" : "text-gray-400"}`}>
-                      {p.desc}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          </Section>
+          <div
+            style={{
+              opacity: visible ? 1 : 0,
+              transform: visible ? "translateY(0)" : "translateY(12px)",
+              transition: "opacity 0.4s ease 150ms, transform 0.4s ease 150ms",
+            }}
+          >
+            <Section
+              icon={<AlertTriangle size={15} className="text-blue-500" />}
+              title="Priority Level"
+            >
+              <div className="space-y-2">
+                {PRIORITIES.map((p) => {
+                  const isActive = form.priority === p.key;
+                  return (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() =>
+                        setForm((prev) => ({ ...prev, priority: p.key }))
+                      }
+                      className={`w-full border-2 rounded-xl p-3 text-left transition-all duration-200 hover:scale-[1.01] ${
+                        isActive
+                          ? p.activeColor
+                          : `${p.color} hover:border-gray-300`
+                      }`}
+                    >
+                      <p
+                        className={`text-sm font-semibold ${isActive ? "" : "text-gray-700"}`}
+                      >
+                        {p.label}
+                      </p>
+                      <p
+                        className={`text-xs mt-0.5 ${isActive ? "opacity-80" : "text-gray-400"}`}
+                      >
+                        {p.desc}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </Section>
           </div>
 
           {/* Photos */}
-          <div style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(12px)", transition: "opacity 0.4s ease 250ms, transform 0.4s ease 250ms" }}>
-          <Section icon={<Upload size={15} className="text-blue-500" />} title="Photos (Optional)">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/gif"
-              multiple
-              className="hidden"
-              onChange={handleFileChange}
-            />
-
-            {previews.length > 0 && (
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                {previews.map((src, i) => (
-                  <div key={i} className="relative group rounded-lg overflow-hidden aspect-square">
-                    <img src={src} alt="" className="w-full h-full object-cover" />
-                    <button
-                      onClick={() => removePhoto(i)}
-                      className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full border-2 border-dashed border-gray-200 rounded-xl py-8 flex flex-col items-center gap-2 text-gray-400 hover:border-blue-300 hover:text-blue-400 transition-all duration-200 hover:bg-blue-50/30"
+          <div
+            style={{
+              opacity: visible ? 1 : 0,
+              transform: visible ? "translateY(0)" : "translateY(12px)",
+              transition: "opacity 0.4s ease 250ms, transform 0.4s ease 250ms",
+            }}
+          >
+            <Section
+              icon={<Upload size={15} className="text-blue-500" />}
+              title="Photos (Optional)"
             >
-              <ImageIcon size={26} className="opacity-50" />
-              <span className="text-sm font-medium">Click to upload photos</span>
-              <span className="text-xs">PNG, JPG, GIF up to 10MB each</span>
-            </button>
-          </Section>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/gif"
+                multiple
+                className="hidden"
+                onChange={handleFileChange}
+              />
+
+              {previews.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  {previews.map((src, i) => (
+                    <div
+                      key={i}
+                      className="relative group rounded-lg overflow-hidden aspect-square"
+                    >
+                      <img
+                        src={src}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        onClick={() => removePhoto(i)}
+                        className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-gray-200 rounded-xl py-8 flex flex-col items-center gap-2 text-gray-400 hover:border-blue-300 hover:text-blue-400 transition-all duration-200 hover:bg-blue-50/30"
+              >
+                <ImageIcon size={26} className="opacity-50" />
+                <span className="text-sm font-medium">
+                  Click to upload photos
+                </span>
+                <span className="text-xs">PNG, JPG, GIF up to 10MB each</span>
+              </button>
+            </Section>
           </div>
         </div>
       </div>

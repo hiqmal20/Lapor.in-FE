@@ -1,9 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, FileText, PlusSquare, User, LogOut } from "lucide-react";
+import {
+  LayoutDashboard,
+  FileText,
+  PlusSquare,
+  User,
+  LogOut,
+} from "lucide-react";
 import { clearAuth } from "@/lib/auth";
 import Image from "next/image";
 
@@ -17,6 +24,20 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [user, setUser] = useState<{ name?: string; role?: string } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      try {
+        setUser(JSON.parse(stored));
+      } catch (error) {
+        setUser(null);
+      }
+    }
+  }, []);
 
   const handleLogout = () => {
     clearAuth();
@@ -25,21 +46,24 @@ export default function Sidebar() {
     router.push("/login");
   };
 
-  // ambil user dari localStorage
-  const user = typeof window !== "undefined"
-    ? JSON.parse(localStorage.getItem("user") || "{}")
-    : {};
-
   return (
     <aside className="w-44 min-h-screen bg-white border-r border-gray-100 flex flex-col">
       {/* logo */}
       <div className="px-4 py-4 border-b border-gray-100">
         <Link href="/" className="flex items-center gap-2">
           <div className="p-1 rounded-lg">
-            <Image src="/images/laporin.png" alt="Logo" width={85} height={85} className="ml-5"/>
+            <Image
+              src="/images/laporin.png"
+              alt="Logo"
+              width={85}
+              height={85}
+              className="ml-5"
+            />
           </div>
         </Link>
-        <p className="text-xs text-gray-400 mt-0.5 ml-5">Public Complaint System</p>
+        <p className="text-xs text-gray-400 mt-0.5 ml-5">
+          Public Complaint System
+        </p>
       </div>
 
       {/* user info */}
@@ -49,7 +73,9 @@ export default function Sidebar() {
             {user?.name?.charAt(0)?.toUpperCase() || "U"}
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-900 truncate w-24">{user?.name || "User"}</p>
+            <p className="text-xs font-semibold text-gray-900 truncate w-24">
+              {user?.name || "User"}
+            </p>
             <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
               Citizen
             </span>
@@ -59,7 +85,9 @@ export default function Sidebar() {
 
       {/* nav */}
       <nav className="flex-1 px-3 py-4">
-        <p className="text-xs text-gray-400 uppercase tracking-wider mb-3 px-1">Navigation</p>
+        <p className="text-xs text-gray-400 uppercase tracking-wider mb-3 px-1">
+          Navigation
+        </p>
         <ul className="space-y-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href;

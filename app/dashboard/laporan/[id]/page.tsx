@@ -126,28 +126,36 @@ export default function LaporanDetailPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [laporanRes, commentsRes] = await Promise.all([
-        apiFetch(`/api/laporin/laporan/${id}`),
-        apiFetch(`/api/laporin/laporan/${id}/comments`),
-      ]);
-      if (laporanRes.ok) {
-        const d: LaporanDetail = laporanRes.data?.data ?? laporanRes.data;
-        setLaporan(d);
-        setEditForm({
-          title: d.title ?? "",
-          category_name: d.category_name ?? "",
-          description: d.description ?? "",
-          location: d.location ?? "",
-          priority: d.priority ?? "medium",
-        });
-        setTimeout(() => setVisible(true), 50);
+      try {
+        const [laporanRes, commentsRes] = await Promise.all([
+          apiFetch(`/api/laporin/laporan/${id}`),
+          apiFetch(`/api/laporin/laporan/${id}/comments`),
+        ]);
+
+        if (laporanRes.ok) {
+          const d: LaporanDetail = laporanRes.data?.data ?? laporanRes.data;
+          setLaporan(d);
+          setEditForm({
+            title: d.title ?? "",
+            category_name: d.category_name ?? "",
+            description: d.description ?? "",
+            location: d.location ?? "",
+            priority: d.priority ?? "medium",
+          });
+          setTimeout(() => setVisible(true), 50);
+        }
+        if (commentsRes.ok) {
+          setComments(Array.isArray(commentsRes.data) ? commentsRes.data : []);
+        }
+      } catch (error) {
+        console.error("Error fetching detail data:", error);
+      } finally {
+        setLoading(false);
       }
-      if (commentsRes.ok) {
-        setComments(Array.isArray(commentsRes.data) ? commentsRes.data : []);
-      }
-      setLoading(false);
     };
-    fetchData();
+    if (id) {
+      fetchData();
+    }
   }, [id]);
 
   const handleSendComment = async () => {
@@ -183,6 +191,28 @@ export default function LaporanDetailPage() {
     setEditForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const handleDeleteLaporan = async () => {
+    const konfirmasi = window.confirm("Apakah Anda yakin ingin menghapus laporan ini?");
+    if (!konfirmasi) return;
+
+    try {
+      const { ok, data } = await apiFetch(`/api/laporin/laporan/${id}`, {
+        method: "DELETE",
+      });
+
+      if (ok) {
+        alert("Laporan berhasil dihapus!");
+        router.push("/dashboard");
+        router.refresh();
+      } else {
+        alert(data?.message || "Gagal menghapus laporan");
+      }
+    } catch (error) {
+      console.error("Delete Error:", error);
+      alert("Terjadi kesalahan jaringan saat menghapus laporan.");
+    }
+  };
+
   const handleSave = async () => {
     setSaveError("");
     if (!editForm.title?.trim()) return setSaveError("Title is required.");
@@ -198,7 +228,6 @@ export default function LaporanDetailPage() {
       let res: Response;
 
       if (newPhotos.length > 0) {
-        // kirim FormData kalau ada foto baru
         const formData = new FormData();
         Object.entries(editForm).forEach(([k, v]) => formData.append(k, v));
         newPhotos.forEach((f) => formData.append("image", f));
@@ -209,7 +238,6 @@ export default function LaporanDetailPage() {
           body: formData,
         });
       } else {
-        // kirim JSON biasa
         const body: Record<string, string> = { ...editForm };
         if (removeExistingPhoto) body.remove_image = "true";
 
@@ -262,7 +290,7 @@ export default function LaporanDetailPage() {
       });
     }
     setSaveError("");
-    setNewPhotos([]);
+    setNewPhotos([]); // -> Di sini yang tadi typo
     setNewPreviews([]);
     setRemoveExistingPhoto(false);
     setEditing(false);
@@ -332,15 +360,27 @@ export default function LaporanDetailPage() {
         </button>
 
         {canEdit && !editing && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setEditing(true)}
-            className="text-xs gap-1.5 border-gray-200 hover:border-blue-400 hover:text-blue-600 transition-all duration-200"
-          >
-            <Pencil size={13} />
-            Edit Report
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setEditing(true)}
+              className="text-xs gap-1.5 border-gray-200 hover:border-blue-400 hover:text-blue-600 transition-all duration-200"
+            >
+              <Pencil size={13} />
+              Edit Report
+            </Button>
+            
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleDeleteLaporan}
+              className="text-xs gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-400 hover:text-red-700 transition-all duration-200"
+            >
+              <Trash2 size={13} />
+              Delete Report
+            </Button>
+          </div>
         )}
 
         {editing && (
@@ -509,7 +549,6 @@ export default function LaporanDetailPage() {
       {/* image */}
       {(() => {
         const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-        // backend simpan nama file di field 'image', build full URL
         const rawImg = laporan.image || laporan.image_url || laporan.photo_url;
         const imgSrc = rawImg
           ? rawImg.startsWith("http")

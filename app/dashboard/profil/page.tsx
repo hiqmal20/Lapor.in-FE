@@ -42,7 +42,7 @@ export default function ProfilePage() {
     address: "",
   });
 
-  // change password
+  // Change password states
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     current_password: "",
@@ -54,14 +54,15 @@ export default function ProfilePage() {
   const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
-    // load dari localStorage dulu
+    // 1. Load dari localStorage (Fast interaction)
     const user = getUser();
     if (user) {
       const p = user as ProfileData;
       setProfile(p);
       setEditForm({ name: p.name, phone: p.phone ?? "", address: p.address ?? "" });
     }
-    // fetch fresh
+    
+    // 2. Fetch data terbaru dari server
     apiFetch("/api/laporin/auth/me").then(({ ok, data }) => {
       if (ok) {
         const d: ProfileData = data?.data ?? data;
@@ -83,7 +84,7 @@ export default function ProfilePage() {
     if (!editForm.name.trim()) return setSaveError("Name is required.");
     setSaving(true);
 
-    // kirim hanya field yang ada di backend (name, phone, address)
+    // Kirim hanya field yang divalidasi backend
     const payload: Record<string, string> = { name: editForm.name };
     if (editForm.phone !== undefined) payload.phone = editForm.phone;
     if (editForm.address !== undefined) payload.address = editForm.address;
@@ -92,7 +93,9 @@ export default function ProfilePage() {
       method: "PUT",
       body: JSON.stringify(payload),
     });
+    
     setSaving(false);
+    
     if (ok) {
       const updated = { ...profile!, ...editForm };
       setProfile(updated);
@@ -102,13 +105,14 @@ export default function ProfilePage() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } else {
-      // tampilkan error dari backend atau pesan generik
       setSaveError(data?.message ?? "Failed to update profile. Make sure the backend endpoint exists.");
     }
   };
 
   const handleCancelEdit = () => {
-    if (profile) setEditForm({ name: profile.name, phone: profile.phone ?? "", address: profile.address ?? "" });
+    if (profile) {
+      setEditForm({ name: profile.name, phone: profile.phone ?? "", address: profile.address ?? "" });
+    }
     setSaveError("");
     setEditing(false);
   };
@@ -118,25 +122,41 @@ export default function ProfilePage() {
     if (!passwordForm.current_password) return setPasswordError("Current password is required.");
     if (!passwordForm.new_password) return setPasswordError("New password is required.");
     if (passwordForm.new_password.length < 6) return setPasswordError("Min. 6 characters.");
-    if (passwordForm.new_password !== passwordForm.confirm_password)
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
       return setPasswordError("Passwords do not match.");
+    }
+    
     setSavingPassword(true);
     const { ok, data } = await apiFetch("/api/laporin/auth/change-password", {
       method: "PUT",
-      body: JSON.stringify({ current_password: passwordForm.current_password, new_password: passwordForm.new_password }),
+      body: JSON.stringify({ 
+        current_password: passwordForm.current_password, 
+        new_password: passwordForm.new_password 
+      }),
     });
+    
     setSavingPassword(false);
+    
     if (ok) {
       setPasswordSuccess(true);
       setPasswordForm({ current_password: "", new_password: "", confirm_password: "" });
-      setTimeout(() => { setPasswordSuccess(false); setShowPasswordForm(false); }, 2500);
+      setTimeout(() => { 
+        setPasswordSuccess(false); 
+        setShowPasswordForm(false); 
+      }, 2500);
     } else {
       setPasswordError(data?.message ?? "Failed to change password.");
     }
   };
 
-  const formatDate = (d?: string) =>
-    d ? new Date(d).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : null;
+  // Parser tanggal yang aman dari crash 'Invalid Date'
+  const formatDate = (d?: string) => {
+    if (!d) return null;
+    const date = new Date(d);
+    return isNaN(date.getTime()) 
+      ? null 
+      : date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  };
 
   if (!profile) {
     return (
@@ -149,28 +169,29 @@ export default function ProfilePage() {
 
   return (
     <div className={`space-y-5 max-w-2xl transition-all duration-300 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}>
-      {/* header */}
+      {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-gray-900">My Profile</h1>
         <p className="text-xs text-gray-400 mt-0.5">Manage your account information</p>
       </div>
 
+      {/* Success Banner */}
       {saveSuccess && (
         <div className="bg-green-50 border border-green-200 text-green-700 text-xs px-4 py-3 rounded-lg flex items-center gap-2">
-          <CheckCircle size={13} /> Profile updated successfully.
+          <CheckCircle size={13} className="shrink-0" /> Profile updated successfully.
         </div>
       )}
 
-      {/* profile card */}
+      {/* Profile Card */}
       <div className="bg-white border border-gray-100 rounded-xl p-5">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-xl bg-blue-600 flex items-center justify-center text-white text-2xl font-bold shrink-0">
               {profile.name?.charAt(0)?.toUpperCase() ?? "U"}
             </div>
             <div>
-              <h2 className="text-base font-bold text-gray-900">{profile.name}</h2>
-              <p className="text-xs text-gray-400 mt-0.5">{profile.email}</p>
+              <h2 className="text-base font-bold text-gray-900 break-words">{profile.name}</h2>
+              <p className="text-xs text-gray-400 mt-0.5 break-all">{profile.email}</p>
               <div className="flex items-center gap-2 mt-2">
                 <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium flex items-center gap-1">
                   <User size={10} />
@@ -180,7 +201,7 @@ export default function ProfilePage() {
               </div>
               {formatDate(profile.created_at) && (
                 <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                  <Calendar size={11} />
+                  <Calendar size={11} className="shrink-0" />
                   Member since {formatDate(profile.created_at)}
                 </p>
               )}
@@ -189,7 +210,7 @@ export default function ProfilePage() {
 
           {!editing ? (
             <Button size="sm" variant="outline" onClick={() => setEditing(true)}
-              className="text-xs gap-1.5 border-gray-200 hover:border-blue-400 hover:text-blue-600 transition-all duration-200 shrink-0">
+              className="text-xs gap-1.5 border-gray-200 hover:border-blue-400 hover:text-blue-600 transition-all duration-200 shrink-0w-fit">
               <Pencil size={13} /> Edit Profile
             </Button>
           ) : (
@@ -198,16 +219,21 @@ export default function ProfilePage() {
                 <X size={13} /> Cancel
               </Button>
               <Button size="sm" onClick={handleSave} disabled={saving} className="text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
-                {saving
-                  ? <span className="flex items-center gap-1.5"><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</span>
-                  : <><Save size={13} />Save</>}
+                {saving ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving...
+                  </span>
+                ) : (
+                  <><Save size={13} />Save</>
+                )}
               </Button>
             </div>
           )}
         </div>
       </div>
 
-      {/* personal information */}
+      {/* Personal Information */}
       <div className={`bg-white border rounded-xl p-5 transition-all duration-200 ${editing ? "border-blue-200 shadow-sm" : "border-gray-100"}`}>
         <h3 className="text-sm font-semibold text-gray-900 mb-4">Personal Information</h3>
 
@@ -217,30 +243,30 @@ export default function ProfilePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-          {/* full name */}
-          <div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+          {/* Full Name */}
+          <div className="col-span-1">
             <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Full Name</p>
             {editing ? (
               <Input name="name" value={editForm.name} onChange={handleChange}
                 className="h-9 text-sm border-gray-200 focus:border-blue-400 bg-gray-50 rounded-lg transition-colors" />
             ) : (
-              <p className="text-sm text-gray-800 flex items-center gap-2">
-                <User size={13} className="text-gray-400" />{profile.name}
+              <p className="text-sm text-gray-800 flex items-center gap-2 break-words">
+                <User size={13} className="text-gray-400 shrink-0" />{profile.name}
               </p>
             )}
           </div>
 
-          {/* email — read only */}
-          <div>
+          {/* Email — Read Only */}
+          <div className="col-span-1">
             <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Email Address</p>
-            <p className="text-sm text-gray-800 flex items-center gap-2">
-              <Mail size={13} className="text-gray-400" />{profile.email}
+            <p className="text-sm text-gray-800 flex items-center gap-2 break-all">
+              <Mail size={13} className="text-gray-400 shrink-0" />{profile.email}
             </p>
           </div>
 
-          {/* phone */}
-          <div>
+          {/* Phone Number */}
+          <div className="col-span-1">
             <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Phone Number</p>
             {editing ? (
               <Input name="phone" value={editForm.phone} onChange={handleChange}
@@ -248,30 +274,30 @@ export default function ProfilePage() {
                 className="h-9 text-sm border-gray-200 focus:border-blue-400 bg-gray-50 rounded-lg transition-colors" />
             ) : (
               <p className="text-sm text-gray-800 flex items-center gap-2">
-                <Phone size={13} className="text-gray-400" />
+                <Phone size={13} className="text-gray-400 shrink-0" />
                 {profile.phone || <span className="text-gray-400">-</span>}
               </p>
             )}
           </div>
 
-          {/* address */}
-          <div>
+          {/* Address — Spans full width on desktop */}
+          <div className="col-span-1 sm:col-span-2">
             <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Address</p>
             {editing ? (
               <Input name="address" value={editForm.address} onChange={handleChange}
                 placeholder="Jl. Kebon Jeruk No. 12"
                 className="h-9 text-sm border-gray-200 focus:border-blue-400 bg-gray-50 rounded-lg transition-colors" />
             ) : (
-              <p className="text-sm text-gray-800 flex items-center gap-2">
-                <MapPin size={13} className="text-gray-400" />
-                {profile.address || <span className="text-gray-400">-</span>}
+              <p className="text-sm text-gray-800 flex items-start gap-2 break-words">
+                <MapPin size={13} className="text-gray-400 mt-0.5 shrink-0" />
+                <span>{profile.address || <span className="text-gray-400">-</span>}</span>
               </p>
             )}
           </div>
         </div>
       </div>
 
-      {/* security */}
+      {/* Security */}
       <div className="bg-white border border-gray-100 rounded-xl p-5">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
@@ -318,13 +344,18 @@ export default function ProfilePage() {
             ))}
             <Button onClick={handleChangePassword} disabled={savingPassword}
               className="w-full h-9 text-sm bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200">
-              {savingPassword
-                ? <span className="flex items-center gap-2"><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</span>
-                : "Update Password"}
+              {savingPassword ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </span>
+              ) : (
+                "Update Password"
+              )}
             </Button>
           </div>
         )}
       </div>
     </div>
   );
-}
+} 

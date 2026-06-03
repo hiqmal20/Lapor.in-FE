@@ -22,7 +22,7 @@ export function RegisterForm() {
     setLoading(true);
 
     try {
-      const { ok, data } = await apiFetch("/auth/register", {
+      const { ok, data } = await apiFetch("/api/laporin/auth/register", {
         method: "POST",
         body: JSON.stringify({ name, email, password }),
       });

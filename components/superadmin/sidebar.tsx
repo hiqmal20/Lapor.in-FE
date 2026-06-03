@@ -3,13 +3,16 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Users, FileText, Tag, User, LogOut } from "lucide-react";
+// REVISI: Tambahkan ikon Radio untuk menu Duty Monitor
+import { LayoutDashboard, Users, Radio, FileText, Tag, User, LogOut } from "lucide-react";
 import { clearAuth } from "@/lib/auth";
 import { useEffect, useState } from "react";
 
 const navItems = [
   { href: "/superadmin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/superadmin/users", label: "Manage Users", icon: Users },
+  // TAMBAHAN MENU BARU: Menghubungkan langsung ke halaman duty monitor Anda
+  { href: "/superadmin/duty-monitor", label: "Duty Monitor", icon: Radio },
   { href: "/superadmin/laporan", label: "Manage Reports", icon: FileText },
   { href: "/superadmin/categories", label: "Categories", icon: Tag },
   { href: "/superadmin/profil", label: "Profile", icon: User },

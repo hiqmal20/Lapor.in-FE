@@ -59,20 +59,45 @@ export default function AdminProfilPage() {
     setEditForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  // 🔥 PERBAIKAN UTAMA: Mengunci penyimpanan agar permanen
   const handleSave = async () => {
     setSaveError("");
     if (!editForm.name.trim()) return setSaveError("Name is required.");
     setSaving(true);
+    
     const { ok, data } = await apiFetch("/api/laporin/auth/profile", {
       method: "PUT",
-      body: JSON.stringify({ name: editForm.name, phone: editForm.phone, address: editForm.address }),
+      body: JSON.stringify({ 
+        name: editForm.name, 
+        phone: editForm.phone, 
+        address: editForm.address 
+      }),
     });
+    
     setSaving(false);
+    
     if (ok) {
-      const updated = { ...profile!, ...editForm };
+      // 1. Ambil data user dari respon backend (bisa di data.data, data.user, atau langsung di data)
+      const serverUser = data?.data ?? data?.user ?? data;
+      
+      // 2. Gabungkan data lama, input form terbaru, dan respon resmi dari server
+      const updated = { 
+        ...profile!, 
+        ...editForm,
+        ...(serverUser && typeof serverUser === "object" ? serverUser : {})
+      };
+      
+      // 3. Update React State untuk tampilan instan
       setProfile(updated);
+      
       const token = localStorage.getItem("token") ?? "";
+      
+      // 4. Update via Auth Helper bawaan proyekmu
       setAuth({ ...updated, role: updated.role as "user" | "admin" | "super_admin" }, token);
+      
+      // 5. FAIL-SAFE: Paksa over-write localStorage secara manual agar saat F5/refresh data tidak balik kucing
+      localStorage.setItem("user", JSON.stringify(updated));
+      
       setEditing(false);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
