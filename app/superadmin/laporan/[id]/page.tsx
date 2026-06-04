@@ -34,7 +34,10 @@ interface LaporanDetail {
   admin_note?: string;
   image?: string;
   image_url?: string;
+  admin_id?: number | null;
+  admin_name?: string | null;
 }
+
 interface Comment {
   id: number;
   user_id: number;
@@ -62,11 +65,13 @@ const STATUS_STYLE: Record<string, { color: string; label: string }> = {
     label: "Rejected",
   },
 };
+
 const PRIORITY_COLOR: Record<string, string> = {
   high: "bg-red-100 text-red-700",
   medium: "bg-orange-100 text-orange-700",
   low: "bg-gray-100 text-gray-600",
 };
+
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending", dot: "bg-yellow-400" },
   { value: "under_review", label: "Under Review", dot: "bg-blue-400" },
@@ -189,6 +194,7 @@ export default function SuperAdminLaporanDetailPage() {
       day: "numeric",
       year: "numeric",
     });
+    
   const formatShort = (d: string) =>
     new Date(d).toLocaleDateString("en-US", {
       month: "short",
@@ -205,6 +211,7 @@ export default function SuperAdminLaporanDetailPage() {
         <div className="h-32 bg-gray-100 rounded-xl" />
       </div>
     );
+    
   if (!laporan)
     return (
       <div className="text-center py-20 text-gray-400">
@@ -360,7 +367,7 @@ export default function SuperAdminLaporanDetailPage() {
                   No comments yet.
                 </p>
               ) : (
-                comments.map((c) => {
+                comments.map((c) => { // 👈 SUDAH DI-FIX (menggunakan kurung kurawal biasa `{`)
                   const cu = JSON.parse(localStorage.getItem("user") || "{}");
                   return (
                     <div key={c.id} className="flex gap-3 group">
@@ -425,69 +432,102 @@ export default function SuperAdminLaporanDetailPage() {
           </div>
         </div>
 
+        {/* SIDEBAR KANAN */}
         <div className="col-span-1 space-y-4">
-          <div className="bg-white border border-gray-100 rounded-xl p-5 sticky top-6">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <AlertTriangle size={14} className="text-violet-500" />
-              Update Status
-            </h2>
-            {updateSuccess && (
-              <div className="bg-green-50 border border-green-200 text-green-700 text-xs px-3 py-2 rounded-lg mb-3 flex items-center gap-2">
-                <CheckCircle size={12} />
-                Updated successfully.
-              </div>
-            )}
-            {updateError && (
-              <div className="bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2 rounded-lg mb-3">
-                {updateError}
-              </div>
-            )}
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs text-gray-500 mb-2">Status</p>
-                <div className="space-y-2">
-                  {STATUS_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setSelectedStatus(opt.value)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all duration-150 ${selectedStatus === opt.value ? "border-violet-500 bg-violet-50 text-violet-700" : "border-gray-100 text-gray-600 hover:border-gray-200"}`}
-                    >
-                      <span
-                        className={`w-2 h-2 rounded-full shrink-0 ${opt.dot}`}
-                      />
-                      {opt.label}
-                    </button>
-                  ))}
+          <div className="bg-white border border-gray-100 rounded-xl p-5 sticky top-6 space-y-4">
+            
+            {/* 1. SEKSI UPDATE STATUS */}
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <AlertTriangle size={14} className="text-violet-500" />
+                Update Status
+              </h2>
+              {updateSuccess && (
+                <div className="bg-green-50 border border-green-200 text-green-700 text-xs px-3 py-2 rounded-lg mb-3 flex items-center gap-2">
+                  <CheckCircle size={12} />
+                  Updated successfully.
                 </div>
+              )}
+              {updateError && (
+                <div className="bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2 rounded-lg mb-3">
+                  {updateError}
+                </div>
+              )}
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">Status</p>
+                  <div className="space-y-2">
+                    {STATUS_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setSelectedStatus(opt.value)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all duration-150 ${selectedStatus === opt.value ? "border-violet-500 bg-violet-50 text-violet-700" : "border-gray-100 text-gray-600 hover:border-gray-200"}`}
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full shrink-0 ${opt.dot}`}
+                        />
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Admin Note (optional)
+                  </p>
+                  <textarea
+                    value={adminNote}
+                    onChange={(e) => setAdminNote(e.target.value)}
+                    rows={3}
+                    placeholder="Add a note for the reporter..."
+                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-violet-400 transition-colors resize-none"
+                  />
+                </div>
+                <Button
+                  onClick={handleUpdateStatus}
+                  disabled={updating || selectedStatus === laporan.status}
+                  className="w-full h-9 text-xs bg-violet-600 hover:bg-violet-700 text-white transition-all disabled:opacity-50"
+                >
+                  {updating ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Updating...
+                    </span>
+                  ) : (
+                    "Update Status"
+                  )}
+                </Button>
               </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-2">
-                  Admin Note (optional)
-                </p>
-                <textarea
-                  value={adminNote}
-                  onChange={(e) => setAdminNote(e.target.value)}
-                  rows={3}
-                  placeholder="Add a note for the reporter..."
-                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-violet-400 transition-colors resize-none"
-                />
-              </div>
-              <Button
-                onClick={handleUpdateStatus}
-                disabled={updating || selectedStatus === laporan.status}
-                className="w-full h-9 text-xs bg-violet-600 hover:bg-violet-700 text-white transition-all disabled:opacity-50"
-              >
-                {updating ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Updating...
-                  </span>
-                ) : (
-                  "Update Status"
-                )}
-              </Button>
             </div>
           </div>
+
+          {/* 2. SEKSI STATUS AMBIL LAPORAN */}
+          <div className="bg-white border border-gray-100 rounded-xl p-5">
+            <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <User size={14} className="text-violet-500" />
+              Report Handler
+            </h2>
+            {laporan.admin_name ? (
+              <div className="flex items-center gap-3 bg-violet-50/60 border border-violet-100 p-3 rounded-xl">
+                <div className="w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+                  {laporan.admin_name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-[10px] text-violet-400 font-bold uppercase tracking-wider">Has already been taken</p>
+                  <p className="text-xs font-bold text-gray-800">
+                    {laporan.admin_name.toUpperCase()}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 text-amber-700 p-3 rounded-xl text-xs font-semibold">
+                <AlertTriangle size={14} className="text-amber-500 shrink-0 animate-pulse" />
+                <span>Belum diambil oleh admin manapun</span>
+              </div>
+            )}
+          </div>
+
+          {/* 3. SEKSI REPORTER */}
           <div className="bg-white border border-gray-100 rounded-xl p-5">
             <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <User size={14} className="text-violet-500" />
